@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, db } from '@/services/supabase'
+import { n8nWebhooks } from '@/services/n8nWebhooks'
 import type { 
   User, 
   UserProfile, 
@@ -71,7 +72,7 @@ export function useAuth() {
       setError(null)
       
       const { email, password, ...profileData } = data
-      const { error } = await supabase.auth.signUp({
+      const { data: authData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -80,6 +81,57 @@ export function useAuth() {
       })
       
       if (error) throw error
+      
+      // Trigger N8N workflows for user signup
+      if (authData.user) {
+        try {
+          await Promise.all([
+            // User signup automation workflow
+            n8nWebhooks.triggerUserSignup({
+              userId: authData.user.id,
+              email,
+              fullName: profileData.full_name,
+              role: profileData.role || 'customer',
+              companyName: profileData.company_name,
+              phone: profileData.phone,
+              metadata: {
+                signupDate: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                referrer: document.referrer
+              }
+            }),
+            
+            // Marketing email workflow
+            n8nWebhooks.triggerMarketingEmail({
+              email,
+              fullName: profileData.full_name,
+              tags: ['new_user', profileData.role || 'customer'],
+              customFields: {
+                companyName: profileData.company_name,
+                phone: profileData.phone,
+                signupDate: new Date().toISOString()
+              }
+            }),
+            
+            // CRM contact creation workflow
+            n8nWebhooks.triggerCRMContact({
+              email,
+              fullName: profileData.full_name,
+              companyName: profileData.company_name,
+              phone: profileData.phone,
+              leadSource: 'techpulse_signup',
+              properties: {
+                role: profileData.role || 'customer',
+                signupDate: new Date().toISOString(),
+                platform: 'web'
+              }
+            })
+          ])
+        } catch (webhookError) {
+          console.error('Webhook automation failed:', webhookError)
+          // Don't fail the signup process if webhooks fail
+        }
+      }
       
       return { error: null }
     } catch (error) {

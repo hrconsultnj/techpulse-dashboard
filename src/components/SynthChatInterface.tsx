@@ -2,22 +2,9 @@ import type React from "react"
 import { useState, useRef, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Mic,
-  Paperclip,
-  Send,
-  X,
-  FileText,
-  SidebarOpenIcon,
-  SidebarCloseIcon,
-  Settings,
-  User,
-  Menu,
-  Sun,
-  Moon,
-  Plus,
-} from "lucide-react"
+import { Icon } from '@iconify/react'
 import { useMobile } from "@/hooks/use-mobile"
+import { useAudioRecording } from "@/hooks/useAudioRecording"
 import { cn } from "@/lib/utils"
 
 interface FileAttachment {
@@ -43,25 +30,45 @@ export default function SynthChatInterface() {
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [darkMode, setDarkMode] = useState(false)
-  const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null)
-
-  const [isRecording, setIsRecording] = useState(false)
-  const [recordingTime, setRecordingTime] = useState(0)
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
-  const [isConverting, setIsConverting] = useState(false)
-  const [recordingState, setRecordingState] = useState<"idle" | "recording" | "ready">("idle")
-  const [isTranscribing, setIsTranscribing] = useState(false)
-  const [transcriptionError, setTranscriptionError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const micButtonRef = useRef<HTMLButtonElement>(null)
+  const transcribedAudioRef = useRef<Blob | null>(null)
   const isMobile = useMobile()
+
+  // Audio recording hook
+  const {
+    isRecording,
+    isTranscribing,
+    duration,
+    audioBlob,
+    transcriptionText,
+    error: audioError,
+    startRecording,
+    stopRecording,
+    clearRecording,
+    transcribeRecording
+  } = useAudioRecording()
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  // Handle audio transcription and auto-insertion into input
+  useEffect(() => {
+    if (transcriptionText && transcriptionText.trim()) {
+      setInput(transcriptionText)
+    }
+  }, [transcriptionText])
+
+  // Auto-transcribe when recording stops and audio is available
+  useEffect(() => {
+    if (audioBlob && !isRecording && !isTranscribing && audioBlob !== transcribedAudioRef.current) {
+      transcribedAudioRef.current = audioBlob
+      transcribeRecording()
+    }
+  }, [audioBlob, isRecording, isTranscribing, transcribeRecording])
 
   useEffect(() => {
     if (isMobile) {
@@ -123,13 +130,14 @@ export default function SynthChatInterface() {
     formData.append("sessionId", "current-session")
 
     try {
-      // Use the proxy endpoint to avoid CORS issues
-      const proxyUrl = "/api/webhook-proxy"
-      console.log("Sending to webhook proxy:", proxyUrl)
+      // Use the Next.js API route (updated from Vite)
+      const proxyUrl = "/api/webhook-proxy?type=customer-support"
+      console.log("Sending to Next.js webhook proxy:", proxyUrl)
       console.log("FormData contents:")
 
       // Log FormData contents for debugging
-      for (const [key, value] of formData.entries()) {
+      const entries = Array.from(formData.entries())
+      for (const [key, value] of entries) {
         if (value instanceof File) {
           console.log(`${key}: File - ${value.name} (${value.size} bytes, ${value.type})`)
         } else {
@@ -195,7 +203,7 @@ export default function SynthChatInterface() {
       const errorResponse: ChatMessage = {
         id: Date.now().toString(),
         role: "assistant",
-        content: `${errorMessage}\n\n**Debug Info:**\n- Using webhook proxy to avoid CORS\n- Error: ${error instanceof Error ? error.message : "Unknown error"}\n- Check browser console for more details.`,
+        content: `${errorMessage}\n\n**Debug Info:**\n- Using Next.js API route for secure webhook proxy\n- Error: ${error instanceof Error ? error.message : "Unknown error"}\n- Check browser console for more details.`,
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorResponse])
@@ -206,7 +214,7 @@ export default function SynthChatInterface() {
     async (e: React.FormEvent) => {
       e.preventDefault()
 
-      if (!input.trim() && attachments.length === 0 && !voiceBlob) return
+      if (!input.trim() && attachments.length === 0 && !audioBlob) return
 
       // Prevent double submission
       if (isLoading) {
@@ -218,7 +226,7 @@ export default function SynthChatInterface() {
         setIsLoading(true)
 
         let messageContent = input
-        if (!messageContent && voiceBlob) {
+        if (!messageContent && audioBlob) {
           messageContent = "🎤 Voice message"
         } else if (!messageContent && attachments.length > 0) {
           messageContent = `📎 ${attachments.length} file(s) attached`
@@ -230,23 +238,22 @@ export default function SynthChatInterface() {
           content: messageContent,
           timestamp: new Date(),
           attachments: attachments.length > 0 ? attachments : undefined,
-          hasVoice: !!voiceBlob,
+          hasVoice: !!audioBlob,
         }
 
         setMessages((prev) => [...prev, userMessage])
 
-        await sendToN8n(input, voiceBlob || undefined, attachments.length > 0 ? attachments : undefined)
+        await sendToN8n(input, audioBlob || undefined, attachments.length > 0 ? attachments : undefined)
 
         // Clear form
         setInput("")
         setAttachments([])
-        setVoiceBlob(null)
-        setRecordingState("idle")
-        setRecordingTime(0)
-        setTranscriptionError(null)
+        clearRecording()
+        transcribedAudioRef.current = null
 
         if (textareaRef.current) {
           textareaRef.current.style.height = "auto"
+          textareaRef.current.style.overflowY = "hidden"
         }
       } catch (error) {
         console.error("Submit error:", error)
@@ -262,7 +269,7 @@ export default function SynthChatInterface() {
         setIsLoading(false)
       }
     },
-    [input, attachments, voiceBlob, sendToN8n],
+    [input, attachments, audioBlob, sendToN8n, clearRecording],
   )
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -276,349 +283,11 @@ export default function SynthChatInterface() {
     setMessages([])
     setInput("")
     setAttachments([])
-    setVoiceBlob(null)
-    setRecordingState("idle")
-    setRecordingTime(0)
-  }, [])
+    clearRecording()
+  }, [clearRecording])
 
-  const startRecording = async () => {
-    // Prevent multiple simultaneous recordings
-    if (isRecording || recordingState === "recording") {
-      console.warn("Recording already in progress")
-      return
-    }
 
-    try {
-      // Check if browser supports getUserMedia
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Your browser doesn't support audio recording")
-      }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100,
-        },
-      })
-
-      // Check if MediaRecorder is supported
-      if (!window.MediaRecorder) {
-        stream.getTracks().forEach((track) => track.stop())
-        throw new Error("Your browser doesn't support audio recording")
-      }
-
-      let mimeType = "audio/webm;codecs=opus"
-      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
-        mimeType = "audio/webm;codecs=opus"
-      } else if (MediaRecorder.isTypeSupported("audio/webm")) {
-        mimeType = "audio/webm"
-      } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
-        mimeType = "audio/mp4"
-      } else {
-        stream.getTracks().forEach((track) => track.stop())
-        throw new Error("Your browser doesn't support the required audio formats")
-      }
-
-      const recorder = new MediaRecorder(stream, {
-        mimeType: mimeType,
-        audioBitsPerSecond: 128000,
-      })
-      const chunks: Blob[] = []
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data)
-        }
-      }
-
-      recorder.onerror = (e) => {
-        console.error("MediaRecorder error:", e)
-        setRecordingState("idle")
-        setIsRecording(false)
-        stream.getTracks().forEach((track) => track.stop())
-        alert("Recording failed. Please try again.")
-      }
-
-      recorder.onstop = async () => {
-        if (chunks.length === 0) {
-          console.warn("No audio data recorded")
-          setRecordingState("idle")
-          stream.getTracks().forEach((track) => track.stop())
-          alert("No audio was recorded. Please try again.")
-          return
-        }
-
-        setIsConverting(true)
-
-        try {
-          const originalBlob = new Blob(chunks, { type: mimeType })
-
-          // Check if blob has content
-          if (originalBlob.size === 0) {
-            throw new Error("Recorded audio is empty")
-          }
-
-          // Simple conversion - just change the mime type for consistency
-          const mp3Blob = new Blob([originalBlob], { type: "audio/mp3" })
-          setVoiceBlob(mp3Blob)
-          setRecordingState("ready")
-          setIsConverting(false)
-
-          // Start transcription
-          const transcribedText = await transcribeAudio(mp3Blob)
-
-          if (transcribedText && transcribedText.trim()) {
-            // If there's existing text, ask user how to handle it
-            if (input.trim()) {
-              const userChoice = confirm(
-                `Transcribed: "${transcribedText}"\n\n` +
-                  "You already have text in the input field. Do you want to:\n\n" +
-                  "OK = Replace the current text\n" +
-                  "Cancel = Add to the current text",
-              )
-
-              if (userChoice) {
-                setInput(transcribedText)
-              } else {
-                setInput((prev) => prev + (prev ? " " : "") + transcribedText)
-              }
-            } else {
-              setInput(transcribedText)
-            }
-
-            // Auto-resize the textarea
-            if (textareaRef.current) {
-              textareaRef.current.style.height = "auto"
-              textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + "px"
-              textareaRef.current.focus()
-            }
-          }
-        } catch (error) {
-          console.error("Audio processing failed:", error)
-          setIsConverting(false)
-          setRecordingState("idle")
-          alert(`Audio processing failed: ${error instanceof Error ? error.message : "Unknown error"}`)
-        }
-
-        stream.getTracks().forEach((track) => track.stop())
-      }
-
-      recorder.start()
-      setMediaRecorder(recorder)
-      setIsRecording(true)
-      setRecordingState("recording")
-      setRecordingTime(0)
-
-      const timer = setInterval(() => {
-        setRecordingTime((prev) => prev + 1)
-      }, 1000)
-      ;(recorder as any).timer = timer
-
-      // Auto-stop recording after 5 minutes to prevent issues
-      setTimeout(
-        () => {
-          if (recorder.state === "recording") {
-            console.warn("Auto-stopping recording after 5 minutes")
-            stopRecording()
-          }
-        },
-        5 * 60 * 1000,
-      )
-    } catch (error) {
-      console.error("Recording failed:", error)
-      setRecordingState("idle")
-      setIsRecording(false)
-      setIsConverting(false)
-
-      if (error instanceof Error) {
-        if (error.name === "NotAllowedError") {
-          alert("Microphone access denied. Please allow microphone access in your browser settings and try again.")
-        } else if (error.name === "NotFoundError") {
-          alert("No microphone found. Please connect a microphone and try again.")
-        } else if (error.name === "NotReadableError") {
-          alert("Microphone is being used by another application. Please close other apps and try again.")
-        } else {
-          alert(`Recording failed: ${error.message}`)
-        }
-      } else {
-        alert("Recording failed. Please try again.")
-      }
-    }
-  }
-
-  const stopRecording = () => {
-    try {
-      if (mediaRecorder && isRecording) {
-        if (mediaRecorder.state === "recording") {
-          mediaRecorder.stop()
-        }
-        clearInterval((mediaRecorder as any).timer)
-        setMediaRecorder(null)
-        setIsRecording(false)
-      }
-    } catch (error) {
-      console.error("Error stopping recording:", error)
-      setRecordingState("idle")
-      setIsRecording(false)
-      setIsConverting(false)
-    }
-  }
-
-  // Desktop: Click to start/stop, Mobile: Hold to record
-  const handleMicClick = () => {
-    if (isMobile) return // Mobile uses touch events
-
-    try {
-      if (recordingState === "idle") {
-        // Clear any existing transcription errors
-        setTranscriptionError(null)
-        startRecording()
-      } else if (recordingState === "recording") {
-        stopRecording()
-      } else if (recordingState === "ready") {
-        // If there's already text, ask user what they want to do
-        if (input.trim()) {
-          const userChoice = confirm(
-            "You already have text in the input field. Do you want to:\n\n" +
-              "OK = Replace the current text with a new recording\n" +
-              "Cancel = Keep the current text and record again to add to it",
-          )
-
-          if (userChoice) {
-            // Replace current text - clear and start new recording
-            setInput("")
-            setVoiceBlob(null)
-            setRecordingState("idle")
-            setRecordingTime(0)
-            setTimeout(() => startRecording(), 100)
-          } else {
-            // Keep current text - just start new recording
-            setVoiceBlob(null)
-            setRecordingState("idle")
-            setRecordingTime(0)
-            setTimeout(() => startRecording(), 100)
-          }
-        } else {
-          // No existing text, just start new recording
-          setVoiceBlob(null)
-          setRecordingState("idle")
-          setRecordingTime(0)
-          setTimeout(() => startRecording(), 100)
-        }
-      }
-    } catch (error) {
-      console.error("Microphone click error:", error)
-      setRecordingState("idle")
-      setIsRecording(false)
-      setIsConverting(false)
-      setIsTranscribing(false)
-      alert("An error occurred with the microphone. Please try again.")
-    }
-  }
-
-  // Mobile touch events
-  const handleMicTouchStart = (e: React.TouchEvent) => {
-    if (!isMobile) return
-    e.preventDefault()
-    if (recordingState === "idle") {
-      startRecording()
-    }
-  }
-
-  const handleMicTouchEnd = (e: React.TouchEvent) => {
-    if (!isMobile) return
-    e.preventDefault()
-    if (recordingState === "recording") {
-      stopRecording()
-    }
-  }
-
-  // Get mic button color based on state
-  const getMicButtonColor = () => {
-    if (recordingState === "recording") {
-      return "text-red-500 hover:text-red-600"
-    } else {
-      return "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-    }
-  }
-
-  const transcribeAudio = async (audioBlob: Blob): Promise<string | null> => {
-    try {
-      setIsTranscribing(true)
-      setTranscriptionError(null)
-
-      // Check if blob is valid
-      if (!audioBlob || audioBlob.size === 0) {
-        throw new Error("No audio data to transcribe")
-      }
-
-      // Check blob size (limit to 25MB for OpenAI)
-      if (audioBlob.size > 25 * 1024 * 1024) {
-        throw new Error("Audio file too large (max 25MB)")
-      }
-
-      const formData = new FormData()
-      formData.append("audio", audioBlob, "recording.mp3")
-
-      console.log("Sending audio for transcription...")
-
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-
-      const response = await fetch("/api/transcribe", {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-      })
-
-      clearTimeout(timeoutId)
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ details: "Unknown error" }))
-        throw new Error(errorData.details || `Transcription failed with status ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.text || typeof result.text !== "string") {
-        throw new Error("Invalid transcription response")
-      }
-
-      console.log("Transcription successful:", result.text)
-      return result.text.trim()
-    } catch (error) {
-      console.error("Transcription error:", error)
-
-      let errorMessage = "Transcription failed"
-      if (error instanceof Error) {
-        if (error.name === "AbortError") {
-          errorMessage = "Transcription timed out"
-        } else {
-          errorMessage = error.message
-        }
-      }
-
-      setTranscriptionError(errorMessage)
-      return null
-    } finally {
-      setIsTranscribing(false)
-    }
-  }
-
-  useEffect(() => {
-    // Cleanup function to stop recording if component unmounts
-    return () => {
-      if (mediaRecorder && isRecording) {
-        try {
-          mediaRecorder.stop()
-          clearInterval((mediaRecorder as any).timer)
-        } catch (error) {
-          console.error("Cleanup error:", error)
-        }
-      }
-    }
-  }, [mediaRecorder, isRecording])
 
   return (
     <div className={cn("flex h-screen", darkMode ? "dark" : "")}>
@@ -650,7 +319,7 @@ export default function SynthChatInterface() {
             onClick={startNewChat}
             className="w-full bg-transparent border border-gray-600 hover:bg-gray-800 text-white justify-start"
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Icon icon="feather:plus" className="w-4 h-4 mr-2" />
             New chat
           </Button>
           {isMobile && (
@@ -660,7 +329,7 @@ export default function SynthChatInterface() {
               onClick={() => setSidebarOpen(false)}
               className="text-white hover:bg-gray-800 lg:hidden mt-4"
             >
-              <X className="w-5 h-5" />
+              <Icon icon="feather:x" className="w-5 h-5" />
             </Button>
           )}
         </div>
@@ -674,7 +343,7 @@ export default function SynthChatInterface() {
         <div className="p-4 border-t border-gray-700 dark:border-gray-800">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              <User className="w-4 h-4" />
+              <Icon icon="feather:user" className="w-4 h-4" />
               <span>TechPulse User</span>
             </div>
             <Button
@@ -683,7 +352,7 @@ export default function SynthChatInterface() {
               onClick={() => setDarkMode(!darkMode)}
               className="text-gray-400 hover:text-white hover:bg-gray-800"
             >
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {darkMode ? <Icon icon="feather:sun" className="w-4 h-4" /> : <Icon icon="feather:moon" className="w-4 h-4" />}
             </Button>
           </div>
         </div>
@@ -706,11 +375,11 @@ export default function SynthChatInterface() {
               className="text-gray-600 dark:text-gray-400"
             >
               {isMobile ? (
-                <Menu className="w-5 h-5" />
+                <Icon icon="feather:menu" className="w-5 h-5" />
               ) : sidebarOpen ? (
-                <SidebarCloseIcon className="w-5 h-5" />
+                <Icon icon="feather:sidebar" className="w-5 h-5" />
               ) : (
-                <SidebarOpenIcon className="w-5 h-5" />
+                <Icon icon="feather:sidebar" className="w-5 h-5" />
               )}
             </Button>
             <div className="flex items-center gap-3">
@@ -730,7 +399,7 @@ export default function SynthChatInterface() {
             </div>
           </div>
           <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400">
-            <Settings className="w-5 h-5" />
+            <Icon icon="feather:settings" className="w-5 h-5" />
           </Button>
         </div>
 
@@ -783,7 +452,7 @@ export default function SynthChatInterface() {
                       )}
                     >
                       {message.role === "user" ? (
-                        <User className={cn("text-white", isMobile ? "w-4 h-4" : "w-5 h-5")} />
+                        <Icon icon="feather:user" className={cn("text-white", isMobile ? "w-4 h-4" : "w-5 h-5")} />
                       ) : (
                         <div className="w-full h-full rounded-full overflow-hidden">
                           <img
@@ -836,7 +505,7 @@ export default function SynthChatInterface() {
                                 isMobile ? "max-w-full" : "max-w-sm",
                               )}
                             >
-                              <FileText className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                              <Icon icon="feather:file-text" className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                               <span className="text-sm text-gray-700 dark:text-gray-300">{attachment.name}</span>
                             </div>
                           )}
@@ -901,62 +570,6 @@ export default function SynthChatInterface() {
           )}
         >
           <div className={cn("mx-auto", isMobile ? "max-w-none" : "max-w-3xl")}>
-            {/* Recording status - minimal inline indicator */}
-            {(isRecording || isConverting || isTranscribing) && (
-              <div className="mb-2 flex items-center justify-center">
-                <div className="flex items-center gap-2 px-3 py-1 bg-red-50 dark:bg-red-900/20 rounded-full border border-red-200 dark:border-red-800">
-                  {isRecording ? (
-                    <>
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs text-red-700 dark:text-red-300">
-                        {isMobile
-                          ? "Recording..."
-                          : `Recording ${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, "0")}`}
-                      </span>
-                    </>
-                  ) : isConverting ? (
-                    <>
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full animate-spin"></div>
-                      <span className="text-xs text-yellow-700 dark:text-yellow-300">Converting to MP3...</span>
-                    </>
-                  ) : isTranscribing ? (
-                    <>
-                      <div className="flex items-center gap-1">
-                        <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce"></div>
-                        <div
-                          className="w-1 h-1 bg-blue-500 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.1s" }}
-                        ></div>
-                        <div
-                          className="w-1 h-1 bg-blue-500 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        ></div>
-                      </div>
-                      <span className="text-xs text-blue-700 dark:text-blue-300">Transcribing audio...</span>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            )}
-
-            {/* Transcription Error */}
-            {transcriptionError && (
-              <div className="mb-2 flex items-center justify-center">
-                <div className="flex items-center gap-2 px-3 py-1 bg-red-50 dark:bg-red-900/20 rounded-full border border-red-200 dark:border-red-800">
-                  <span className="text-xs text-red-700 dark:text-red-300">
-                    Transcription failed: {transcriptionError}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-4 h-4 p-0 text-red-700 dark:text-red-300"
-                    onClick={() => setTranscriptionError(null)}
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-            )}
 
             {/* Attachments Preview */}
             {attachments.length > 0 && (
@@ -980,12 +593,12 @@ export default function SynthChatInterface() {
                           className="absolute -top-2 -right-2 w-6 h-6 p-0 opacity-0 group-hover:opacity-100"
                           onClick={() => removeAttachment(index)}
                         >
-                          <X className="w-3 h-3" />
+                          <Icon icon="feather:x" className="w-3 h-3" />
                         </Button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        <Icon icon="feather:file-text" className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                         <span className="text-sm max-w-32 truncate text-gray-700 dark:text-gray-300">
                           {attachment.name}
                         </span>
@@ -995,7 +608,7 @@ export default function SynthChatInterface() {
                           className="w-4 h-4 p-0 opacity-0 group-hover:opacity-100"
                           onClick={() => removeAttachment(index)}
                         >
-                          <X className="w-3 h-3" />
+                          <Icon icon="feather:x" className="w-3 h-3" />
                         </Button>
                       </div>
                     )}
@@ -1020,29 +633,34 @@ export default function SynthChatInterface() {
                     className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Paperclip className="w-5 h-5" />
+                    <Icon icon="feather:paperclip" className="w-5 h-5" />
                   </Button>
                   <Button
-                    ref={micButtonRef}
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className={cn(getMicButtonColor(), recordingState === "recording" && "animate-pulse")}
-                    onClick={handleMicClick}
-                    onTouchStart={handleMicTouchStart}
-                    onTouchEnd={handleMicTouchEnd}
-                    disabled={isConverting}
+                    className={cn(
+                      isRecording 
+                        ? "text-red-500 hover:text-red-600 animate-pulse" 
+                        : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                    )}
+                    onClick={isRecording ? stopRecording : startRecording}
+                    disabled={isTranscribing}
                     title={
-                      isMobile
-                        ? "Hold to record voice message (auto-transcribed)"
-                        : recordingState === "idle"
-                          ? "Click to start recording (auto-transcribed)"
-                          : recordingState === "recording"
-                            ? "Click to stop recording"
-                            : "Click to record again"
+                      isRecording
+                        ? `Recording ${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, "0")} - Click to stop`
+                        : isTranscribing
+                          ? "Transcribing audio..."
+                          : "Click to start recording (auto-transcribed)"
                     }
                   >
-                    <Mic className="w-5 h-5" />
+                    {isRecording ? (
+                      <Icon icon="feather:square" className="w-5 h-5" />
+                    ) : isTranscribing ? (
+                      <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+                    ) : (
+                      <Icon icon="feather:mic" className="w-5 h-5" />
+                    )}
                   </Button>
                 </div>
 
@@ -1052,12 +670,21 @@ export default function SynthChatInterface() {
                   value={input}
                   onChange={(e) => {
                     setInput(e.target.value)
+                    // Reset height to auto to get accurate scrollHeight
                     e.target.style.height = "auto"
-                    e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px"
+                    // Set height up to max of 120px (about 5 lines), then scroll
+                    const maxHeight = 120
+                    if (e.target.scrollHeight <= maxHeight) {
+                      e.target.style.height = e.target.scrollHeight + "px"
+                      e.target.style.overflowY = "hidden"
+                    } else {
+                      e.target.style.height = maxHeight + "px"
+                      e.target.style.overflowY = "auto"
+                    }
                   }}
                   onKeyDown={handleKeyDown}
                   placeholder="Message Synth..."
-                  className="flex-1 min-h-[24px] max-h-[200px] resize-none border-0 focus:ring-0 focus:outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                  className="flex-1 min-h-[24px] max-h-[120px] resize-none border-0 focus:ring-0 focus:outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 overflow-y-auto"
                   disabled={isLoading}
                   rows={1}
                 />
@@ -1065,17 +692,31 @@ export default function SynthChatInterface() {
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={isLoading || isConverting || (!input.trim() && attachments.length === 0 && !voiceBlob)}
+                  disabled={isLoading || isTranscribing || (!input.trim() && attachments.length === 0 && !audioBlob)}
                   className="bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black rounded-lg px-3"
                 >
-                  <Send className="w-4 h-4" />
+                  <Icon icon="feather:send" className="w-4 h-4" />
                 </Button>
               </div>
             </form>
 
+            {audioError && (
+              <p className="text-xs text-red-500 dark:text-red-400 text-center mt-1">
+                ⚠️ {audioError}
+              </p>
+            )}
+            {isRecording && (
+              <p className="text-xs text-blue-500 dark:text-blue-400 text-center mt-1">
+                🎤 Recording {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, "0")}
+              </p>
+            )}
+            {isTranscribing && (
+              <p className="text-xs text-amber-500 dark:text-amber-400 text-center mt-1">
+                ⏳ Transcribing audio...
+              </p>
+            )}
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
-              {isMobile ? "Hold mic to record & transcribe • " : "Click mic to record & transcribe • "}
-              Synth can make mistakes. Check important automotive information.
+              Click mic to record & transcribe • Synth can make mistakes. Check important automotive information.
             </p>
           </div>
 

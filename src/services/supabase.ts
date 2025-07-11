@@ -1,12 +1,12 @@
 import { createClient, type AuthChangeEvent, type Session } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 
-// Load environment variables with proper typing
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+// Load environment variables with proper typing for Next.js
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Check your .env file.')
+  throw new Error('Missing Supabase environment variables. Check your .env.local file.')
 }
 
 // Create typed Supabase client
@@ -53,8 +53,8 @@ export const auth = {
   }
 }
 
-// Database query options interface
-interface QueryOptions {
+// Database query interface with type safety
+interface QueryOptions<T extends keyof Database['public']['Tables']> {
   columns?: string
   filters?: Array<{
     column: string
@@ -63,18 +63,18 @@ interface QueryOptions {
   }>
   order?: {
     column: string
-    ascending: boolean
+    ascending?: boolean
   }
   limit?: number
   offset?: number
 }
 
-// Type-safe database operations
+// Generic database operations with full type safety
 export const db = {
-  // Generic function to fetch data from any table with full type safety
+  // Get all records from a table with optional filtering and ordering
   async getAll<T extends keyof Database['public']['Tables']>(
     table: T,
-    options: QueryOptions = {}
+    options: QueryOptions<T> = {}
   ): Promise<Database['public']['Tables'][T]['Row'][]> {
     let query = supabase.from(table).select(options.columns || '*')
     
@@ -103,7 +103,7 @@ export const db = {
       throw error
     }
     
-    return data || []
+    return (data || []) as unknown as Database['public']['Tables'][T]['Row'][]
   },
   
   // Get a single record by ID
@@ -126,7 +126,7 @@ export const db = {
       throw error
     }
     
-    return data
+    return data as unknown as Database['public']['Tables'][T]['Row'] | null
   },
   
   // Create a new record with type safety
@@ -145,28 +145,10 @@ export const db = {
       throw error
     }
     
-    return result
+    return result as Database['public']['Tables'][T]['Row']
   },
   
-  // Create multiple records
-  async createMany<T extends keyof Database['public']['Tables']>(
-    table: T,
-    data: Database['public']['Tables'][T]['Insert'][]
-  ): Promise<Database['public']['Tables'][T]['Row'][]> {
-    const { data: result, error } = await supabase
-      .from(table)
-      .insert(data)
-      .select()
-    
-    if (error) {
-      console.error(`Error creating multiple ${table}:`, error)
-      throw error
-    }
-    
-    return result || []
-  },
-  
-  // Update a record by ID
+  // Update an existing record with type safety
   async update<T extends keyof Database['public']['Tables']>(
     table: T,
     id: string,
@@ -184,7 +166,7 @@ export const db = {
       throw error
     }
     
-    return result
+    return result as Database['public']['Tables'][T]['Row']
   },
   
   // Delete a record by ID
@@ -203,56 +185,24 @@ export const db = {
     }
   },
   
-  // Count records in a table
-  async count<T extends keyof Database['public']['Tables']>(
-    table: T,
-    filters?: QueryOptions['filters']
-  ): Promise<number> {
-    let query = supabase
-      .from(table)
-      .select('*', { count: 'exact', head: true })
-    
-    if (filters) {
-      filters.forEach(filter => {
-        query = query.filter(filter.column, filter.operator, filter.value)
-      })
-    }
-    
-    const { count, error } = await query
-    
-    if (error) {
-      console.error(`Error counting ${table}:`, error)
-      throw error
-    }
-    
-    return count || 0
-  },
-  
-  // Search with text matching
+  // Generic search across text columns
   async search<T extends keyof Database['public']['Tables']>(
     table: T,
-    column: string,
-    query: string,
-    options: QueryOptions = {}
+    searchTerm: string,
+    columns: string[] = ['*'],
+    limit = 10
   ): Promise<Database['public']['Tables'][T]['Row'][]> {
-    let searchQuery = supabase
+    // Build OR condition for text search
+    const orConditions = columns
+      .filter(col => col !== '*')
+      .map(col => `${col}.ilike.%${searchTerm}%`)
+      .join(',')
+    
+    const searchQuery = supabase
       .from(table)
-      .select(options.columns || '*')
-      .textSearch(column, query)
-    
-    if (options.filters) {
-      options.filters.forEach(filter => {
-        searchQuery = searchQuery.filter(filter.column, filter.operator, filter.value)
-      })
-    }
-    
-    if (options.order) {
-      searchQuery = searchQuery.order(options.order.column, { ascending: options.order.ascending })
-    }
-    
-    if (options.limit) {
-      searchQuery = searchQuery.limit(options.limit)
-    }
+      .select('*')
+      .or(orConditions)
+      .limit(limit)
     
     const { data, error } = await searchQuery
     
@@ -261,7 +211,7 @@ export const db = {
       throw error
     }
     
-    return data || []
+    return (data || []) as unknown as Database['public']['Tables'][T]['Row'][]
   }
 }
 
@@ -282,17 +232,10 @@ export const automotiveDb = {
     return vehicles.data || []
   },
   
-  // Customer operations
-  async getCustomerVehicles(customerId: string) {
-    return await db.getAll('vehicles', {
-      filters: [{ column: 'customer_id', operator: 'eq', value: customerId }]
-    })
-  },
-  
   // Support ticket operations
-  async getTicketsByStatus(status: Database['public']['Tables']['support_tickets']['Row']['status']) {
+  async getTicketsByCustomer(customerId: string) {
     return await db.getAll('support_tickets', {
-      filters: [{ column: 'status', operator: 'eq', value: status }],
+      filters: [{ column: 'customer_id', operator: 'eq', value: customerId }],
       order: { column: 'created_at', ascending: false }
     })
   },
@@ -300,78 +243,65 @@ export const automotiveDb = {
   async getTicketsByTechnician(technicianId: string) {
     return await db.getAll('support_tickets', {
       filters: [{ column: 'assigned_technician_id', operator: 'eq', value: technicianId }],
-      order: { column: 'updated_at', ascending: false }
+      order: { column: 'created_at', ascending: false }
     })
   },
   
-  // Chat operations
-  async getChatHistory(userId: string, sessionId?: string) {
-    const filters = [{ column: 'user_id', operator: 'eq', value: userId }]
-    
-    if (sessionId) {
-      filters.push({ column: 'session_id', operator: 'eq', value: sessionId })
-    }
-    
-    return await db.getAll('chat_messages', {
-      filters,
-      order: { column: 'created_at', ascending: true }
+  // Customer operations
+  async getCustomerProfile(customerId: string) {
+    return await db.getById('user_profiles', customerId)
+  },
+  
+  async getCustomerVehicles(customerId: string) {
+    return await db.getAll('vehicles', {
+      filters: [{ column: 'customer_id', operator: 'eq', value: customerId }]
     })
   },
   
-  async saveChatMessage(
-    userId: string,
-    message: string,
-    response?: string,
-    aiProvider?: string,
-    sessionId?: string,
-    metadata?: any
-  ) {
-    return await db.create('chat_messages', {
-      user_id: userId,
-      message,
-      response: response || null,
-      ai_provider: aiProvider || null,
-      session_id: sessionId || null,
-      metadata: metadata || null
+  // Knowledge base operations
+  async searchKnowledgeBase(query: string, limit = 10) {
+    return await db.search('knowledge_articles', query, ['title', 'content', 'tags'], limit)
+  },
+  
+  async getKnowledgeArticlesByCategory(category: string) {
+    return await db.getAll('knowledge_articles', {
+      filters: [{ column: 'category', operator: 'eq', value: category }],
+      order: { column: 'created_at', ascending: false }
     })
   }
 }
 
-// Storage helpers
-export const storage = {
-  // Upload file to storage bucket
-  async uploadFile(bucket: string, path: string, file: File) {
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(path, file)
-    
-    if (error) {
-      console.error('Error uploading file:', error)
-      throw error
-    }
-    
-    return data
+// Error types for better error handling
+export class SupabaseError extends Error {
+  constructor(message: string, public code?: string, public details?: any) {
+    super(message)
+    this.name = 'SupabaseError'
+  }
+}
+
+// Utility functions
+export const utils = {
+  // Check if user is authenticated
+  isAuthenticated: async (): Promise<boolean> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return !!session
   },
   
-  // Get public URL for file
-  getPublicUrl(bucket: string, path: string) {
-    const { data } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(path)
-    
-    return data.publicUrl
+  // Get current user ID
+  getCurrentUserId: async (): Promise<string | null> => {
+    const { data: { user } } = await supabase.auth.getUser()
+    return user?.id || null
   },
   
-  // Delete file from storage
-  async deleteFile(bucket: string, path: string) {
-    const { error } = await supabase.storage
-      .from(bucket)
-      .remove([path])
-    
-    if (error) {
-      console.error('Error deleting file:', error)
-      throw error
-    }
+  // Real-time subscriptions (simplified)
+  subscribeToTable: (
+    table: string,
+    callback: (payload: any) => void,
+    event: 'INSERT' | 'UPDATE' | 'DELETE' | '*' = '*'
+  ) => {
+    // Real-time subscriptions can be implemented later when needed
+    console.log('Real-time subscriptions not implemented yet')
+    return { unsubscribe: () => {} }
   }
 }
 

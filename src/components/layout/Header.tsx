@@ -1,22 +1,25 @@
+'use client'
+
 import React, { useState, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { FiSettings, FiLogOut, FiSearch } from 'react-icons/fi'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Icon } from '@iconify/react'
 import { useAuth } from '@/hooks/useAuth'
 
 const Header: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const { user, profile, signOut } = useAuth()
-  const navigate = useNavigate()
+  const router = useRouter()
 
   const handleLogout = useCallback(async () => {
     try {
       await signOut()
-      navigate('/login')
+      router.push('/login')
     } catch (error) {
       console.error('Logout error:', error)
     }
-  }, [signOut, navigate])
+  }, [signOut, router])
 
   const handleSearch = useCallback((e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -49,10 +52,12 @@ const Header: React.FC = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link to="/dashboard" className="flex items-center">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">TP</span>
-              </div>
+            <Link href="/dashboard" className="flex items-center">
+              <img
+                src="/images/techpulse-logo-light.png"
+                alt="TechPulse"
+                className="h-8 w-auto"
+              />
               <span className="ml-2 text-xl font-semibold text-gray-900">TechPulse</span>
             </Link>
           </div>
@@ -68,7 +73,7 @@ const Header: React.FC = () => {
                 className="w-full px-4 py-2 pl-10 pr-4 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiSearch className="h-5 w-5 text-gray-400" />
+                <Icon icon="feather:search" className="h-5 w-5 text-gray-400" />
               </div>
             </form>
           </div>
@@ -131,11 +136,11 @@ const Header: React.FC = () => {
 
                     {/* Menu items */}
                     <Link
-                      to="/settings"
+                      href="/settings"
                       className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                       onClick={closeDropdown}
                     >
-                      <FiSettings className="mr-3 h-4 w-4" />
+                      <Icon icon="feather:settings" className="mr-3 h-4 w-4" />
                       Settings
                     </Link>
                     
@@ -143,7 +148,7 @@ const Header: React.FC = () => {
                       onClick={handleLogout}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                     >
-                      <FiLogOut className="mr-3 h-4 w-4" />
+                      <Icon icon="feather:log-out" className="mr-3 h-4 w-4" />
                       Sign out
                     </button>
                   </div>
