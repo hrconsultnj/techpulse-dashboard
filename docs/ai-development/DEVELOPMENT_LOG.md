@@ -22,12 +22,12 @@
 
 **Environment Variables Added**:
 ```bash
-VITE_N8N_ENABLED=true
-VITE_N8N_USER_SIGNUP_WEBHOOK=https://n8n.techpulse.ai/webhook/user-signup
-VITE_N8N_MARKETING_EMAIL_WEBHOOK=https://n8n.techpulse.ai/webhook/marketing-email
-VITE_N8N_CRM_CONTACT_WEBHOOK=https://n8n.techpulse.ai/webhook/crm-contact
-VITE_N8N_CUSTOMER_SUPPORT_WEBHOOK=https://n8n.techpulse.ai/webhook/customer-support
-VITE_N8N_ANALYTICS_WEBHOOK=https://n8n.techpulse.ai/webhook/analytics
+NEXT_PUBLIC_N8N_ENABLED=true
+NEXT_PUBLIC_N8N_USER_SIGNUP_WEBHOOK=https://n8n.techpulse.ai/webhook/user-signup
+NEXT_PUBLIC_N8N_MARKETING_EMAIL_WEBHOOK=https://n8n.techpulse.ai/webhook/marketing-email
+NEXT_PUBLIC_N8N_CRM_CONTACT_WEBHOOK=https://n8n.techpulse.ai/webhook/crm-contact
+NEXT_PUBLIC_N8N_CUSTOMER_SUPPORT_WEBHOOK=https://n8n.techpulse.ai/webhook/customer-support
+NEXT_PUBLIC_N8N_ANALYTICS_WEBHOOK=https://n8n.techpulse.ai/webhook/analytics
 ```
 
 #### ✅ **OpenAI Whisper Voice Transcription**
@@ -47,8 +47,8 @@ VITE_N8N_ANALYTICS_WEBHOOK=https://n8n.techpulse.ai/webhook/analytics
 
 **Environment Variables Added**:
 ```bash
-VITE_OPENAI_API_KEY=sk-proj-mjX8eQu8LlmY7v0Bu2YiBm1SqzT0OtEDig42...
-VITE_WHISPER_MODEL=whisper-1
+NEXT_PUBLIC_OPENAI_API_KEY=sk-proj-mjX8eQu8LlmY7v0Bu2YiBm1SqzT0OtEDig42...
+NEXT_PUBLIC_WHISPER_MODEL=whisper-1
 ```
 
 ### 🐛 **Critical Bug Fixes**
@@ -137,14 +137,45 @@ if (e.target.scrollHeight <= maxHeight) {
 - `docs/API_INTEGRATIONS.md` - API integration documentation
 - Updated `.env.example` with comprehensive configuration
 
+## 📅 July 13, 2025
+
+### 🎯 **Migration to Next.js Completed**
+
+#### ✅ **Framework Migration**
+**Time**: Current session  
+**Major Change**: Completed migration from Vite to Next.js 15 with App Router
+
+**Files Updated**:
+- All documentation files (CLAUDE.md, README.md, docs/*)
+- Environment variable references throughout codebase
+- Build configuration and scripts
+
+**Environment Variable Migration**:
+- **Before**: All variables used `VITE_` prefix
+- **After**: All variables now use `NEXT_PUBLIC_` prefix
+- **Reason**: Next.js requires NEXT_PUBLIC_ for client-side environment variables
+
+**Documentation Updates**:
+- Updated all API integration documentation
+- Revised setup guides for Next.js architecture
+- Updated troubleshooting guides
+- Cleaned up legacy Vite references
+
+#### ✅ **Legacy Cleanup**
+**Files Cleaned**:
+- Updated all references from Vite to Next.js
+- Cleaned documentation to reflect current architecture
+- Removed outdated configuration examples
+
 ### 🎯 **Next Session Priorities**
 
 Based on user requests and current state:
 
-1. **Feature Enhancements**: Ready for new feature development
-2. **UI Polish**: Additional interface improvements as needed
-3. **Integration Extensions**: Additional N8N workflows or OpenAI features
-4. **Performance Optimizations**: If needed based on usage
+1. **Legacy File Cleanup**: Remove/archive legacy-vite-backup/ directory
+2. **Feature Enhancements**: Ready for new feature development
+3. **UI Polish**: Additional interface improvements as needed
+4. **Integration Extensions**: Additional N8N workflows or OpenAI features
+5. **Performance Optimizations**: If needed based on usage
 
 ### 📋 **Status Summary**
 

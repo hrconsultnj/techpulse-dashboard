@@ -6,15 +6,21 @@
 ## 🏗️ Current Architecture
 
 ### **Frontend Stack**
-- **Framework**: Vite + React + TypeScript
+- **Framework**: Next.js 15 + React + TypeScript
 - **Styling**: Tailwind CSS
 - **UI Components**: Custom components in `src/components/ui/`
 - **Key Features**: Voice recording, real-time transcription, N8N workflow automation
 
 ### **Backend Integrations**
-- **Authentication**: Supabase (configured but has some TypeScript issues)
+- **Authentication**: Supabase (configured and schema corrected)
 - **Voice Transcription**: OpenAI Whisper API (direct frontend integration)
 - **Workflow Automation**: N8N webhooks for user signup, marketing, and CRM
+
+### **Database Schema** ✅ **UPDATED - July 14, 2025**
+- **`user_profiles`** - User profiles table with full fields (role, company_name, phone, etc.)
+- **`chat_messages`** - Chat message storage
+- **`conversation_threads`** - Chat thread management (no `user_id` or `title` columns)
+- **`knowledge_base`** - AI knowledge base for responses
 
 ## ✅ Completed Integrations
 
@@ -51,20 +57,35 @@
 ### **Required Environment Variables**
 ```bash
 # Supabase (Authentication)
-VITE_SUPABASE_URL=https://fcqejcrxtrqdxybgyueu.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXT_PUBLIC_SUPABASE_URL=https://fcqejcrxtrqdxybgyueu.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # OpenAI Whisper (Voice Transcription)
-VITE_OPENAI_API_KEY=sk-proj-mjX8eQu8LlmY7v0Bu2YiBm1SqzT0OtEDig42...
-VITE_WHISPER_MODEL=whisper-1
+NEXT_PUBLIC_OPENAI_API_KEY=sk-proj-mjX8eQu8LlmY7v0Bu2YiBm1SqzT0OtEDig42...
+NEXT_PUBLIC_WHISPER_MODEL=whisper-1
 
 # N8N Workflow Automation
-VITE_N8N_ENABLED=true
-VITE_N8N_USER_SIGNUP_WEBHOOK=https://n8n.techpulse.ai/webhook/user-signup
-VITE_N8N_MARKETING_EMAIL_WEBHOOK=https://n8n.techpulse.ai/webhook/marketing-email
-VITE_N8N_CRM_CONTACT_WEBHOOK=https://n8n.techpulse.ai/webhook/crm-contact
+NEXT_PUBLIC_N8N_ENABLED=true
+NEXT_PUBLIC_N8N_USER_SIGNUP_WEBHOOK=https://n8n.techpulse.ai/webhook/user-signup
+NEXT_PUBLIC_N8N_MARKETING_EMAIL_WEBHOOK=https://n8n.techpulse.ai/webhook/marketing-email
+NEXT_PUBLIC_N8N_CRM_CONTACT_WEBHOOK=https://n8n.techpulse.ai/webhook/crm-contact
 # ... (see .env for full list)
 ```
+
+## ✅ RECENTLY FIXED - July 14, 2025
+
+### **Database Migration to user_profiles**
+- **Issue**: Consolidated profiles and user_profiles tables into single user_profiles table
+- **Impact**: Full user profile fields now available (role, company_name, phone, etc.)
+- **Status**: ✅ COMPLETED - All code updated to use user_profiles
+- **Files Updated**: `database.types.ts`, `supabase-server.ts`, `useAuth.ts`, `supabase.ts`
+- **Deprecated**: Old `profiles` table (minimal schema)
+
+### **Conversation Threads Schema**
+- **Issue**: Code expected `user_id` and `title` columns that don't exist
+- **Impact**: Thread management API failures
+- **Status**: ✅ FIXED - Updated to use metadata for user_id
+- **Note**: User ID stored in `metadata.user_id` field
 
 ## 🚨 Known Issues
 
@@ -131,15 +152,24 @@ VITE_N8N_CRM_CONTACT_WEBHOOK=https://n8n.techpulse.ai/webhook/crm-contact
 
 ## 🔄 Development Status
 
-**Last Updated**: July 10, 2025  
-**Current Phase**: Core functionality complete - ready for feature enhancements  
+**Last Updated**: July 14, 2025  
+**Current Phase**: Database migration to user_profiles completed - full profile features available  
 **Next Priorities**: Based on user requests
+
+### **Recent Changes**
+- ✅ Completed migration from Vite to Next.js 15 with App Router
+- ✅ Updated all environment variables from VITE_ to NEXT_PUBLIC_ prefix
+- ✅ Migrated database to use `user_profiles` table with full schema
+- ✅ Updated all TypeScript types to match consolidated database structure
+- ✅ Corrected API routes to use proper table names
+- ✅ Fixed conversation threads to use metadata for user association
+- ✅ Deprecated old `profiles` table in favor of complete `user_profiles`
 
 ## 📞 Emergency Contacts & Resources
 
 - **OpenAI API Docs**: https://platform.openai.com/docs/api-reference/audio
 - **N8N Webhook Docs**: https://docs.n8n.io/webhooks/
-- **Vite Documentation**: https://vitejs.dev/guide/
+- **Next.js Documentation**: https://nextjs.org/docs
 - **Tailwind CSS**: https://tailwindcss.com/docs
 
 ---

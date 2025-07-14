@@ -28,16 +28,24 @@ A sophisticated automotive service chat interface with real-time voice transcrip
 ## 🏗️ Architecture
 
 ### **Frontend Stack**
-- **Framework**: Vite + React 19 + TypeScript
+- **Framework**: Next.js 15 + React 19 + TypeScript
 - **Styling**: Tailwind CSS with custom components
 - **State Management**: React hooks and context
-- **UI Library**: Custom components with Lucide icons
+- **UI Library**: Custom components with Iconify icons
 
 ### **Backend Integrations**
 - **Authentication**: Supabase (configured)
 - **Voice API**: OpenAI Whisper (direct integration)
 - **Automation**: N8N webhooks for workflow triggers
 - **Database**: Supabase PostgreSQL
+
+### **Database Schema** ✅ **CORRECTED - July 11, 2025**
+- **`profiles`** - User profiles and authentication (NOT `user_profiles`)
+- **`chat_messages`** - Chat message storage
+- **`conversation_threads`** - Chat thread management
+- **`knowledge_base`** - AI knowledge base for responses
+- **`support_tickets`** - Support ticket management
+- **`vehicles`** - Vehicle information database
 
 ## 🚀 Quick Start
 
@@ -66,25 +74,25 @@ Copy `.env.example` to `.env` and configure:
 
 ```bash
 # Supabase (Authentication)
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # OpenAI Whisper (Voice Transcription) - REQUIRED
-VITE_OPENAI_API_KEY=sk-proj-your-openai-api-key
+NEXT_PUBLIC_OPENAI_API_KEY=sk-proj-your-openai-api-key
 
 # N8N Workflows (Optional)
-VITE_N8N_ENABLED=true
-VITE_N8N_USER_SIGNUP_WEBHOOK=https://your-n8n.com/webhook/user-signup
-VITE_N8N_MARKETING_EMAIL_WEBHOOK=https://your-n8n.com/webhook/marketing-email
-VITE_N8N_CRM_CONTACT_WEBHOOK=https://your-n8n.com/webhook/crm-contact
+NEXT_PUBLIC_N8N_ENABLED=true
+NEXT_PUBLIC_N8N_USER_SIGNUP_WEBHOOK=https://your-n8n.com/webhook/user-signup
+NEXT_PUBLIC_N8N_MARKETING_EMAIL_WEBHOOK=https://your-n8n.com/webhook/marketing-email
+NEXT_PUBLIC_N8N_CRM_CONTACT_WEBHOOK=https://your-n8n.com/webhook/crm-contact
 ```
 
 ### **Available Scripts**
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
+npm run dev          # Start Next.js development server
+npm run build        # Build Next.js app for production
+npm run start        # Start production server
 npm run lint         # Run ESLint
-npm run preview      # Preview production build
 ```
 
 ## 📁 Project Structure
@@ -141,6 +149,13 @@ npm run preview      # Preview production build
 
 ## 🐛 Known Issues
 
+### **✅ RECENTLY FIXED**
+- **Migration Complete**: Successfully migrated from Vite to Next.js 15 with App Router
+- **Environment Variables**: Updated all VITE_ prefixes to NEXT_PUBLIC_ for Next.js compatibility
+- **Schema Mismatch**: Fixed `user_profiles` vs `profiles` table name inconsistency
+- **Database Types**: Updated TypeScript types to match actual database schema
+- **API Routes**: Corrected all database references in API endpoints
+
 ### **Non-blocking Issues**
 - **Supabase TypeScript Errors**: Build warnings that don't affect functionality
 - **Build Status**: Core features work perfectly despite TypeScript warnings
@@ -168,7 +183,7 @@ npm run preview      # Preview production build
 ## 🔧 Troubleshooting
 
 ### **Voice Transcription Issues**
-1. **"OpenAI API key not configured"**: Check `.env` file has `VITE_OPENAI_API_KEY`
+1. **"OpenAI API key not configured"**: Check `.env` file has `NEXT_PUBLIC_OPENAI_API_KEY`
 2. **Microphone not working**: Check browser permissions for microphone access
 3. **Poor transcription quality**: Ensure clear speech and minimize background noise
 
@@ -179,7 +194,7 @@ npm run preview      # Preview production build
 
 ### **N8N Workflow Issues**
 1. **Webhooks not triggering**: Check webhook URLs and N8N instance status
-2. **Debug webhooks**: Enable `VITE_N8N_DEBUG=true` for detailed console logs
+2. **Debug webhooks**: Enable `NEXT_PUBLIC_N8N_DEBUG=true` for detailed console logs
 3. **Workflow failures**: Check N8N execution logs for error details
 
 ## 📞 Support & Resources
@@ -190,14 +205,15 @@ npm run preview      # Preview production build
 - [Supabase Documentation](https://supabase.com/docs)
 
 ### **Development Resources**
-- [Vite Documentation](https://vitejs.dev/guide/)
+- [Next.js Documentation](https://nextjs.org/docs)
 - [React 19 Documentation](https://react.dev/)
 - [Tailwind CSS](https://tailwindcss.com/docs)
 
 ## 🏷️ Version Information
 
 - **Current Status**: Core functionality complete ✅
-- **Last Updated**: July 10, 2025
+- **Last Updated**: July 11, 2025
+- **Schema Fix**: Database schema documentation corrected and verified
 - **Phase**: Ready for feature enhancements and customizations
 
 ## 📄 License

@@ -20,10 +20,10 @@ Direct frontend integration with OpenAI's Whisper API for real-time voice transc
 #### **Environment Variables**
 ```bash
 # Required - Get from: https://platform.openai.com/api-keys
-VITE_OPENAI_API_KEY=sk-proj-your-key-here
+NEXT_PUBLIC_OPENAI_API_KEY=sk-proj-your-key-here
 
 # Optional - Model configuration
-VITE_WHISPER_MODEL=whisper-1
+NEXT_PUBLIC_WHISPER_MODEL=whisper-1
 ```
 
 #### **Audio Format Settings**
@@ -69,7 +69,7 @@ const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
 #### **Common Issues & Solutions**
 1. **API Key Not Configured**
    - Error: "OpenAI API key not configured"
-   - Solution: Set `VITE_OPENAI_API_KEY` in `.env`
+   - Solution: Set `NEXT_PUBLIC_OPENAI_API_KEY` in `.env`
 
 2. **Unsupported File Format**
    - Error: "Unsupported file format: audio/webm;codecs=opus"
@@ -107,17 +107,17 @@ Webhook-based automation system that triggers workflows in N8N when users sign u
 #### **Environment Variables**
 ```bash
 # N8N Base Configuration
-VITE_N8N_ENABLED=true
-VITE_N8N_DEBUG=false
-VITE_N8N_BASE_URL=https://n8n.techpulse.ai
-VITE_N8N_API_KEY=your_n8n_api_key
+NEXT_PUBLIC_N8N_ENABLED=true
+NEXT_PUBLIC_N8N_DEBUG=false
+NEXT_PUBLIC_N8N_BASE_URL=https://n8n.techpulse.ai
+NEXT_PUBLIC_N8N_API_KEY=your_n8n_api_key
 
 # Webhook URLs
-VITE_N8N_USER_SIGNUP_WEBHOOK=https://n8n.techpulse.ai/webhook/user-signup
-VITE_N8N_MARKETING_EMAIL_WEBHOOK=https://n8n.techpulse.ai/webhook/marketing-email
-VITE_N8N_CRM_CONTACT_WEBHOOK=https://n8n.techpulse.ai/webhook/crm-contact
-VITE_N8N_CUSTOMER_SUPPORT_WEBHOOK=https://n8n.techpulse.ai/webhook/customer-support
-VITE_N8N_ANALYTICS_WEBHOOK=https://n8n.techpulse.ai/webhook/analytics
+NEXT_PUBLIC_N8N_USER_SIGNUP_WEBHOOK=https://n8n.techpulse.ai/webhook/user-signup
+NEXT_PUBLIC_N8N_MARKETING_EMAIL_WEBHOOK=https://n8n.techpulse.ai/webhook/marketing-email
+NEXT_PUBLIC_N8N_CRM_CONTACT_WEBHOOK=https://n8n.techpulse.ai/webhook/crm-contact
+NEXT_PUBLIC_N8N_CUSTOMER_SUPPORT_WEBHOOK=https://n8n.techpulse.ai/webhook/customer-support
+NEXT_PUBLIC_N8N_ANALYTICS_WEBHOOK=https://n8n.techpulse.ai/webhook/analytics
 ```
 
 ### **Webhook Payloads**
@@ -233,7 +233,7 @@ Webhook → Data Validator → Router
 
 #### **Enable Debug Mode**
 ```bash
-VITE_N8N_DEBUG=true
+NEXT_PUBLIC_N8N_DEBUG=true
 ```
 
 #### **Console Logs**
@@ -256,7 +256,7 @@ VITE_N8N_DEBUG=true
 ```bash
 # Error: "OpenAI API key not configured"
 # Solution: Check .env file
-VITE_OPENAI_API_KEY=sk-proj-your-actual-key
+NEXT_PUBLIC_OPENAI_API_KEY=sk-proj-your-actual-key
 
 # Restart dev server after changing .env
 npm run dev
@@ -283,7 +283,7 @@ console.log('Max allowed:', 25 * 1024 * 1024, 'bytes') // 25MB
 #### **1. Webhook Not Triggering**
 ```bash
 # Check webhook URL configuration
-echo $VITE_N8N_USER_SIGNUP_WEBHOOK
+echo $NEXT_PUBLIC_N8N_USER_SIGNUP_WEBHOOK
 
 # Test webhook manually
 curl -X POST https://n8n.techpulse.ai/webhook/user-signup \
@@ -294,7 +294,7 @@ curl -X POST https://n8n.techpulse.ai/webhook/user-signup \
 #### **2. Enable Debug Logging**
 ```bash
 # In .env
-VITE_N8N_DEBUG=true
+NEXT_PUBLIC_N8N_DEBUG=true
 
 # Check browser console for detailed logs
 ```
@@ -312,7 +312,7 @@ VITE_N8N_DEBUG=true
 npm run dev
 
 # Check if variables are loaded
-console.log('OpenAI Key configured:', !!import.meta.env.VITE_OPENAI_API_KEY)
+console.log('OpenAI Key configured:', !!process.env.NEXT_PUBLIC_OPENAI_API_KEY)
 ```
 
 #### **2. Build Errors**
@@ -344,4 +344,4 @@ npm run build
 - [FormData API](https://developer.mozilla.org/en-US/docs/Web/API/FormData)
 
 ---
-*Last updated: July 10, 2025*
+*Last updated: July 13, 2025 - Updated for Next.js migration*

@@ -1,7 +1,6 @@
 // Main type definitions export file
 // Re-export all types for easy importing
 export * from './auth'
-export * from './database'
 export * from './chat'
 export * from './automotive'
 export * from './ui'

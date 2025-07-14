@@ -267,7 +267,7 @@ OPENAI_API_KEY=sk-proj-mjX8eQu8LlmY7v0Bu2YiBm1SqzT0OtEDig42...
 ```typescript
 // ❌ Remove this method
 private async callOpenAIAPI(audioFile: File): Promise<TranscriptionResult> {
-  const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY // EXPOSED!
+  const openaiApiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY // EXPOSED!
   // ... direct OpenAI API call
 }
 ```
@@ -276,8 +276,8 @@ private async callOpenAIAPI(audioFile: File): Promise<TranscriptionResult> {
 ```typescript
 // ✅ Add this method
 private async callSupabaseFunction(audioFile: File): Promise<TranscriptionResult> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   
   const formData = new FormData()
   formData.append('audio', audioFile)
@@ -322,14 +322,14 @@ async transcribeAudio(audioFile: File): Promise<TranscriptionResult> {
 **REMOVE from `.env`:**
 ```bash
 # ❌ REMOVE - Security risk
-VITE_OPENAI_API_KEY=sk-proj-mjX8eQu8LlmY7v0Bu2YiBm1SqzT0OtEDig42...
+NEXT_PUBLIC_OPENAI_API_KEY=sk-proj-mjX8eQu8LlmY7v0Bu2YiBm1SqzT0OtEDig42...
 ```
 
 **KEEP in `.env`** (these are safe):
 ```bash
 # ✅ KEEP - Public URLs, safe to expose
-VITE_SUPABASE_URL=https://fcqejcrxtrqdxybgyueu.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
+NEXT_PUBLIC_SUPABASE_URL=https://fcqejcrxtrqdxybgyueu.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
 ```
 
 ---

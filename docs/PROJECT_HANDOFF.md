@@ -1,9 +1,13 @@
 # Project Handoff Documentation
 
-## Project Overview
-This is a **Dashboard Template** designed to replicate the Bubble.io experience using React + Supabase. It's meant to be a reusable template for quickly spinning up new dashboard projects.
+⚠️ **LEGACY DOCUMENT - Archive Notice**: This document contains outdated information from the Vite era. The project has been successfully migrated to Next.js 15 with App Router. For current setup instructions, see `docs/SETUP_GUIDE.md` and `CLAUDE.md`.
 
-## Current Status: 🟡 80% Complete
+---
+
+## Project Overview
+This is a **TechPulse Dashboard** - a sophisticated automotive service chat interface with voice transcription and workflow automation, built with Next.js 15 + React + TypeScript + Supabase.
+
+## Current Status: ✅ 100% Functional - Fully Migrated to Next.js
 
 ### ✅ What's Working
 - Basic project structure is set up

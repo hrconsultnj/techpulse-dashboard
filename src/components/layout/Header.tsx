@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@iconify/react'
 import { useAuth } from '@/hooks/useAuth'
+import { ThemeSelector } from '@/components/theme-selector'
 
 const Header: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false)
@@ -47,23 +48,11 @@ const Header: React.FC = () => {
     : user?.email?.[0]?.toUpperCase() || 'U'
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link href="/dashboard" className="flex items-center">
-              <img
-                src="/images/techpulse-logo-light.png"
-                alt="TechPulse"
-                className="h-8 w-auto"
-              />
-              <span className="ml-2 text-xl font-semibold text-gray-900">TechPulse</span>
-            </Link>
-          </div>
-
+    <header className="bg-white shadow-sm border-b border-gray-200 ml-64">
+      <div className="px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16 gap-6">
           {/* Search bar */}
-          <div className="flex-1 max-w-md mx-8">
+          <div className="w-64 sm:w-80 md:w-96 max-w-md">
             <form onSubmit={handleSearch} className="relative">
               <input
                 type="text"
@@ -128,29 +117,40 @@ const Header: React.FC = () => {
                     {/* User info */}
                     <div className="px-4 py-3 border-b border-gray-100">
                       <p className="text-sm font-medium text-gray-900">{displayName}</p>
-                      <p className="text-sm text-gray-500 truncate">{user?.email}</p>
+                      <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                       {profile?.company_name && (
                         <p className="text-xs text-gray-400 mt-1">{profile.company_name}</p>
                       )}
+                      <div className="mt-3">
+                        <ThemeSelector showToggle={false} showCurrentState />
+                      </div>
                     </div>
 
-                    {/* Menu items */}
-                    <Link
-                      href="/settings"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                      onClick={closeDropdown}
-                    >
-                      <Icon icon="feather:settings" className="mr-3 h-4 w-4" />
-                      Settings
-                    </Link>
-                    
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      <Icon icon="feather:log-out" className="mr-3 h-4 w-4" />
-                      Sign out
-                    </button>
+                    {/* Profile Menu Items (modified as requested) */}
+                    <div className="p-1 border border-gray-200 mx-2 rounded-md bg-gray-50">
+                      <div className="flex flex-col gap-1.5">
+                        <Link
+                          href="/profile"
+                          className="flex items-center px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                          onClick={closeDropdown}
+                        >
+                          <Icon icon="feather:user" className="mr-2 h-4 w-4" />
+                          My Profile
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center w-full px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                        >
+                          <Icon icon="feather:log-out" className="mr-2 h-4 w-4" />
+                          Sign out
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Theme selector - at bottom */}
+                    <div className="px-4 py-3 border-t border-gray-100">
+                      <ThemeSelector showToggle showCurrentState={false} />
+                    </div>
                   </div>
                 </>
               )}

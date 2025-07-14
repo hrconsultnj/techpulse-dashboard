@@ -1,11 +1,15 @@
 import type React from "react"
 import { useState, useRef, useCallback, useEffect } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Icon } from '@iconify/react'
 import { useMobile } from "@/hooks/use-mobile"
 import { useAudioRecording } from "@/hooks/useAudioRecording"
+import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/utils"
+import { chatService, type ChatMessage as DbChatMessage, type ChatThread } from "@/services/chatService"
+import { ChatThemeToggle } from "@/components/chat-theme-toggle"
 
 interface FileAttachment {
   name: string
@@ -29,13 +33,18 @@ export default function SynthChatInterface() {
   const [attachments, setAttachments] = useState<FileAttachment[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
+  
+  // Thread management state
+  const [threads, setThreads] = useState<ChatThread[]>([])
+  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null)
+  const [threadsLoading, setThreadsLoading] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const transcribedAudioRef = useRef<Blob | null>(null)
   const isMobile = useMobile()
+  const { user, profile } = useAuth()
 
   // Audio recording hook
   const {
@@ -108,107 +117,131 @@ export default function SynthChatInterface() {
     setAttachments((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  const sendToN8n = useCallback(async (messageText: string, voiceBlob?: Blob, files?: FileAttachment[]) => {
-    const formData = new FormData()
-
-    if (messageText.trim()) {
-      formData.append("text", messageText)
+  const sendToDatabase = useCallback(async (messageText: string, voiceBlob?: Blob, files?: FileAttachment[]) => {
+    if (!user?.id) {
+      throw new Error("User must be logged in to send messages")
     }
-
-    if (voiceBlob) {
-      console.log("Adding MP3 voice blob to FormData:", voiceBlob.size, "bytes, type:", voiceBlob.type)
-      formData.append("voice", voiceBlob, `recording.mp3`)
-    }
-
-    if (files && files.length > 0) {
-      files.forEach((attachment, index) => {
-        formData.append(`file_${index}`, attachment.file)
-      })
-    }
-
-    formData.append("timestamp", new Date().toISOString())
-    formData.append("sessionId", "current-session")
 
     try {
-      // Use the Next.js API route (updated from Vite)
-      const proxyUrl = "/api/webhook-proxy?type=customer-support"
-      console.log("Sending to Next.js webhook proxy:", proxyUrl)
-      console.log("FormData contents:")
-
-      // Log FormData contents for debugging
-      const entries = Array.from(formData.entries())
-      for (const [key, value] of entries) {
-        if (value instanceof File) {
-          console.log(`${key}: File - ${value.name} (${value.size} bytes, ${value.type})`)
-        } else {
-          console.log(`${key}: ${value}`)
-        }
-      }
-
-      const response = await fetch(proxyUrl, {
-        method: "POST",
-        body: formData,
+      console.log("Sending message to database:", messageText)
+      
+      const result = await chatService.sendMessage({
+        message: messageText,
+        threadId: currentThreadId || undefined,
+        userId: user.id,
+        voiceBlob,
+        attachments: files || []
       })
 
-      console.log("Proxy response status:", response.status)
+      console.log("Database response:", result)
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error("Proxy error response:", errorText)
-        throw new Error(`Proxy failed with status ${response.status}: ${errorText}`)
-      }
-
-      const result = await response.json()
-      console.log("Proxy response:", result)
-
-      let assistantResponse = ""
-      if (typeof result === "string") {
-        assistantResponse = result
-      } else if (result.response) {
-        assistantResponse = result.response
-      } else if (result.message) {
-        assistantResponse = result.message
-      } else if (result.data) {
-        assistantResponse = typeof result.data === "string" ? result.data : JSON.stringify(result.data)
-      } else {
-        assistantResponse = JSON.stringify(result)
-      }
-
-      if (assistantResponse) {
-        const assistantMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: "assistant",
-          content: assistantResponse,
-          timestamp: new Date(),
+      if (result.success) {
+        // Update current thread ID if it's a new thread
+        if (!currentThreadId) {
+          setCurrentThreadId(result.threadId)
         }
-        setMessages((prev) => [...prev, assistantMessage])
+
+        // Convert database messages to UI messages
+        const userMessage: ChatMessage = {
+          id: result.userMessage.id,
+          role: "user",
+          content: result.userMessage.content,
+          timestamp: new Date(result.userMessage.created_at),
+          hasVoice: !!voiceBlob,
+          attachments: files || []
+        }
+
+        const assistantMessage: ChatMessage = {
+          id: result.assistantMessage.id,
+          role: "assistant",
+          content: result.assistantMessage.content,
+          timestamp: new Date(result.assistantMessage.created_at),
+        }
+
+        // Add messages to UI
+        setMessages((prev) => [...prev, userMessage, assistantMessage])
+        
+        // Refresh threads to show new thread or update existing
+        loadThreads()
       }
     } catch (error) {
-      console.error("Detailed webhook error:", error)
+      console.error("Database error:", error)
 
-      let errorMessage = "I'm having trouble connecting right now. Please try again."
+      let errorMessage = "I'm having trouble connecting to the database right now. Please try again."
 
-      if (error instanceof TypeError && error.message.includes("fetch")) {
-        errorMessage = "Network connection failed. Please check your internet connection and try again."
-      } else if (error instanceof Error) {
-        if (error.message.includes("404")) {
-          errorMessage = "The webhook endpoint was not found. Please check the configuration."
-        } else if (error.message.includes("403") || error.message.includes("401")) {
-          errorMessage = "Access denied to the webhook. Please check authentication settings."
+      if (error instanceof Error) {
+        if (error.message.includes("401") || error.message.includes("403")) {
+          errorMessage = "Authentication error. Please try logging in again."
         } else if (error.message.includes("500")) {
-          errorMessage = "Server error occurred. The n8n workflow might have an issue."
+          errorMessage = "Server error occurred. Please try again later."
         }
       }
 
       const errorResponse: ChatMessage = {
         id: Date.now().toString(),
         role: "assistant",
-        content: `${errorMessage}\n\n**Debug Info:**\n- Using Next.js API route for secure webhook proxy\n- Error: ${error instanceof Error ? error.message : "Unknown error"}\n- Check browser console for more details.`,
+        content: `${errorMessage}\n\n**Debug Info:**\n- Using database API for chat\n- Error: ${error instanceof Error ? error.message : "Unknown error"}\n- Check browser console for more details.`,
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorResponse])
     }
+  }, [currentThreadId, user?.id])
+
+  // Load threads for the current user
+  const loadThreads = useCallback(async () => {
+    if (!user?.id) return
+    
+    try {
+      setThreadsLoading(true)
+      const userThreads = await chatService.getThreads(user.id)
+      setThreads(userThreads)
+    } catch (error) {
+      console.error("Error loading threads:", error)
+    } finally {
+      setThreadsLoading(false)
+    }
+  }, [user?.id])
+
+  // Load messages for a specific thread
+  const loadThreadMessages = useCallback(async (threadId: string) => {
+    try {
+      setIsLoading(true)
+      const threadMessages = await chatService.getThreadMessages(threadId)
+      
+      // Convert database messages to UI messages
+      const uiMessages: ChatMessage[] = threadMessages.map(msg => ({
+        id: msg.id,
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+        timestamp: new Date(msg.created_at),
+        hasVoice: msg.metadata?.hasVoice || false,
+        attachments: msg.metadata?.attachments || []
+      }))
+      
+      setMessages(uiMessages)
+      setCurrentThreadId(threadId)
+    } catch (error) {
+      console.error("Error loading thread messages:", error)
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
+
+  // Load threads when user is available
+  useEffect(() => {
+    if (user?.id) {
+      loadThreads()
+    }
+  }, [user?.id, loadThreads])
+
+  // Load threads when user changes
+  useEffect(() => {
+    if (user?.id) {
+      setMessages([])
+      setCurrentThreadId(null)
+      loadThreads()
+    }
+  }, [user?.id, loadThreads])
 
   const onSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -232,18 +265,8 @@ export default function SynthChatInterface() {
           messageContent = `📎 ${attachments.length} file(s) attached`
         }
 
-        const userMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: "user",
-          content: messageContent,
-          timestamp: new Date(),
-          attachments: attachments.length > 0 ? attachments : undefined,
-          hasVoice: !!audioBlob,
-        }
-
-        setMessages((prev) => [...prev, userMessage])
-
-        await sendToN8n(input, audioBlob || undefined, attachments.length > 0 ? attachments : undefined)
+        // The database API will handle adding messages to the UI
+        await sendToDatabase(messageContent, audioBlob || undefined, attachments.length > 0 ? attachments : undefined)
 
         // Clear form
         setInput("")
@@ -269,7 +292,7 @@ export default function SynthChatInterface() {
         setIsLoading(false)
       }
     },
-    [input, attachments, audioBlob, sendToN8n, clearRecording],
+    [input, attachments, audioBlob, sendToDatabase, clearRecording],
   )
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -283,6 +306,7 @@ export default function SynthChatInterface() {
     setMessages([])
     setInput("")
     setAttachments([])
+    setCurrentThreadId(null)
     clearRecording()
   }, [clearRecording])
 
@@ -290,7 +314,7 @@ export default function SynthChatInterface() {
 
 
   return (
-    <div className={cn("flex h-screen", darkMode ? "dark" : "")}>
+    <div className="flex h-screen">
       {/* Mobile Overlay */}
       {isMobile && sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -308,20 +332,23 @@ export default function SynthChatInterface() {
         )}
       >
         <div className="p-4 border-b border-gray-700 dark:border-gray-800">
+          {/* Navigation Group: Logo and Back to Dashboard */}
           <div className="flex justify-center mb-4">
             <img
-              src="/assets-review/imported-assets/images/techpulse-logo-dark.png"
+              src="/images/techpulse-logo-dark.png"
               alt="TechPulse"
               className="h-[60px] w-auto"
             />
           </div>
-          <Button
-            onClick={startNewChat}
-            className="w-full bg-transparent border border-gray-600 hover:bg-gray-800 text-white justify-start"
-          >
-            <Icon icon="feather:plus" className="w-4 h-4 mr-2" />
-            New chat
-          </Button>
+          <Link href="/dashboard">
+            <Button
+              className="w-full bg-transparent border border-gray-600 hover:bg-gray-800 text-white justify-start"
+            >
+              <Icon icon="ion:return-up-back" className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          </Link>
+
           {isMobile && (
             <Button
               variant="ghost"
@@ -334,9 +361,51 @@ export default function SynthChatInterface() {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2">
-          <div className="text-center text-gray-500 dark:text-gray-400 text-sm mt-8">
-            <p>Chat history will appear here</p>
+        {/* Chat Management Group: New Chat + Chat History */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-4 mb-4">
+            <Button
+              onClick={startNewChat}
+              className="w-full bg-transparent border border-gray-600 hover:bg-gray-800 text-white justify-start"
+            >
+              <Icon icon="feather:plus" className="w-4 h-4 mr-2" />
+              New chat
+            </Button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-2">
+            {threadsLoading ? (
+              <div className="text-center text-gray-500 dark:text-gray-400 text-sm">
+                <p>Loading threads...</p>
+              </div>
+            ) : threads.length === 0 ? (
+              <div className="text-center text-gray-500 dark:text-gray-400 text-sm">
+                <p>No chat history yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {threads.map((thread) => (
+                  <button
+                    key={thread.id}
+                    onClick={() => loadThreadMessages(thread.id)}
+                    className={cn(
+                      "w-full text-left p-3 rounded-lg text-sm transition-colors",
+                      "hover:bg-gray-800 dark:hover:bg-gray-700",
+                      currentThreadId === thread.id
+                        ? "bg-gray-800 dark:bg-gray-700 text-white"
+                        : "text-gray-300 dark:text-gray-400"
+                    )}
+                  >
+                    <div className="font-medium truncate">
+                      {thread.title || "New Chat"}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-500 truncate mt-1">
+                      {new Date(thread.timestamp).toLocaleDateString()}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -344,16 +413,9 @@ export default function SynthChatInterface() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <Icon icon="feather:user" className="w-4 h-4" />
-              <span>TechPulse User</span>
+              <span>{profile?.full_name || user?.email || 'User'}</span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDarkMode(!darkMode)}
-              className="text-gray-400 hover:text-white hover:bg-gray-800"
-            >
-              {darkMode ? <Icon icon="feather:sun" className="w-4 h-4" /> : <Icon icon="feather:moon" className="w-4 h-4" />}
-            </Button>
+            <ChatThemeToggle />
           </div>
         </div>
       </div>
@@ -385,7 +447,7 @@ export default function SynthChatInterface() {
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-cyan-500 p-0.5">
                 <img
-                  src="/assets-review/imported-assets/images/synth-headshot.png"
+                  src="/images/synth-headshot.png"
                   alt="Synth"
                   className="w-full h-full rounded-full object-cover"
                 />
@@ -410,7 +472,7 @@ export default function SynthChatInterface() {
               <div className="text-center max-w-md">
                 <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-cyan-500 p-1 mx-auto mb-6">
                   <img
-                    src="/assets-review/imported-assets/images/synth-headshot.png"
+                    src="/images/synth-headshot.png"
                     alt="Synth"
                     className="w-full h-full rounded-full object-cover"
                   />
@@ -456,7 +518,7 @@ export default function SynthChatInterface() {
                       ) : (
                         <div className="w-full h-full rounded-full overflow-hidden">
                           <img
-                            src="/assets-review/imported-assets/images/synth-headshot.png"
+                            src="/images/synth-headshot.png"
                             alt="Synth"
                             className="w-full h-full object-cover"
                           />
@@ -527,7 +589,7 @@ export default function SynthChatInterface() {
                     >
                       <div className="w-full h-full rounded-full overflow-hidden">
                         <img
-                          src="/assets-review/imported-assets/images/synth-headshot.png"
+                          src="/images/synth-headshot.png"
                           alt="Synth"
                           className="w-full h-full object-cover"
                         />

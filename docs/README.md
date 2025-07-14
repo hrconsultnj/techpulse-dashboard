@@ -65,8 +65,18 @@ Project setup and handoff documentation.
 
 This documentation structure follows the pattern established in `assets-review/imported-assets/docs/` for consistency and familiarity.
 
-**Last Updated**: July 10, 2025  
+**Last Updated**: July 11, 2025  
 **Maintained By**: Development team and AI assistants
+
+## 🔄 **Recent Updates - July 11, 2025**
+
+### **Database Schema Corrections**
+- **Fixed**: `user_profiles` vs `profiles` table name mismatch
+- **Updated**: All TypeScript types to match actual database schema
+- **Corrected**: API routes and database queries
+- **Verified**: Database connections now working properly
+
+See [`database/schema_analysis.md`](./database/schema_analysis.md) for detailed schema information.
 
 ---
 

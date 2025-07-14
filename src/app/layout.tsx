@@ -6,6 +6,7 @@ import './globals.css'
 import Header from '@/components/layout/Header'
 import Sidebar from '@/components/layout/Sidebar'
 import Footer from '@/components/layout/Footer'
+import { ThemeProvider } from '@/components/theme-provider'
 
 // Auth pages that shouldn't have the layout
 const AUTH_PAGES = ['/login', '/register', '/forgot-password', '/reset-password']
@@ -24,7 +25,9 @@ export default function RootLayout({
     return (
       <html lang="en">
         <body className="antialiased">
-          {children}
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
         </body>
       </html>
     )
@@ -35,7 +38,9 @@ export default function RootLayout({
     return (
       <html lang="en">
         <body className="antialiased">
-          {children}
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
         </body>
       </html>
     )
@@ -45,16 +50,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <div className="min-h-screen bg-gray-50">
-          <Header />
-          <div className="flex">
+        <ThemeProvider>
+          <div className="min-h-screen bg-gray-50">
             <Sidebar />
-            <main className="flex-1 p-6">
+            <Header />
+            <main className="ml-64 p-6">
               {children}
             </main>
+            <Footer />
           </div>
-          <Footer />
-        </div>
+        </ThemeProvider>
       </body>
     </html>
   )

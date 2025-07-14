@@ -1,5 +1,5 @@
 import { createClient, type AuthChangeEvent, type Session } from '@supabase/supabase-js'
-import type { Database } from '@/types/database'
+import type { Database } from '@/lib/database.types'
 
 // Load environment variables with proper typing for Next.js
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
@@ -260,11 +260,11 @@ export const automotiveDb = {
   
   // Knowledge base operations
   async searchKnowledgeBase(query: string, limit = 10) {
-    return await db.search('knowledge_articles', query, ['title', 'content', 'tags'], limit)
+    return await db.search('knowledge_base', query, ['title', 'content', 'tags'], limit)
   },
   
   async getKnowledgeArticlesByCategory(category: string) {
-    return await db.getAll('knowledge_articles', {
+    return await db.getAll('knowledge_base', {
       filters: [{ column: 'category', operator: 'eq', value: category }],
       order: { column: 'created_at', ascending: false }
     })

@@ -40,7 +40,16 @@ export function useAuth() {
   const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     try {
       const profile = await db.getById('user_profiles', userId)
-      return profile as UserProfile
+      return profile ? {
+        id: profile.id,
+        email: profile.email || '',
+        full_name: profile.full_name || '',
+        role: profile.role || 'customer',
+        company_name: profile.company_name || '',
+        phone: profile.phone || '',
+        created_at: profile.created_at || new Date().toISOString(),
+        updated_at: profile.updated_at
+      } : null
     } catch (error) {
       console.error('Error fetching user profile:', error)
       return null
@@ -228,7 +237,16 @@ export function useAuth() {
       // Update state with new profile
       setState(prev => ({
         ...prev,
-        profile: updatedProfile as UserProfile,
+        profile: updatedProfile ? {
+          id: updatedProfile.id,
+          email: updatedProfile.email || '',
+          full_name: updatedProfile.full_name || '',
+          role: 'customer' as UserProfile['role'], // Default role since not stored in profiles table
+          company_name: '', // Not stored in profiles table
+          phone: '', // Not stored in profiles table
+          created_at: new Date().toISOString(), // Not stored in profiles table
+          updated_at: updatedProfile.updated_at
+        } : null,
         loading: false
       }))
       
@@ -249,10 +267,20 @@ export function useAuth() {
         full_name: profileData.full_name || null,
         role: profileData.role || 'customer',
         company_name: profileData.company_name || null,
-        phone: profileData.phone || null
+        phone: profileData.phone || null,
+        avatar_url: null
       })
       
-      return profile as UserProfile
+      return profile ? {
+        id: profile.id,
+        email: profile.email || '',
+        full_name: profile.full_name || '',
+        role: profile.role || 'customer',
+        company_name: profile.company_name || '',
+        phone: profile.phone || '',
+        created_at: profile.created_at || new Date().toISOString(),
+        updated_at: profile.updated_at
+      } : null
     } catch (error) {
       console.error('Error creating user profile:', error)
       return null
