@@ -17,8 +17,9 @@ const Sidebar: React.FC = () => {
 
   const navigation: NavigationItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: 'ic:round-dashboard', category: 'Main' },
-    { name: 'Support Tickets', href: '/support-tickets', icon: 'feather:help-circle', category: 'Main' },
-    { name: 'Team Chat', href: '/chat', icon: 'feather:message-square', category: 'Main' },
+    { name: 'Support Tickets', href: '/support-tickets', icon: 'famicons:ticket', category: 'Main' },
+    { name: 'AI Chat', href: '/chat', icon: 'feather:message-square', category: 'Main' },
+    { name: 'Team Chat', href: '/team-chat', icon: 'feather:message-circle', category: 'Main' },
     { name: 'VIN Decode', href: '/vin-decode', icon: 'mdi:car-info', category: 'Vehicle Information' },
     { name: 'Knowledge Base', href: '/knowledge-base', icon: 'feather:book-open', category: 'Vehicle Information' },
     { name: 'Customers', href: '/customers', icon: 'feather:users', category: 'Management' },
@@ -27,8 +28,8 @@ const Sidebar: React.FC = () => {
   ]
 
   return (
-    <div className="w-64 bg-gray-900 min-h-screen fixed left-0 top-0 z-50">
-      <div className="p-4 border-b border-gray-700">
+    <div className="w-64 bg-gray-900 dark:bg-gray-950 min-h-screen fixed left-0 top-0 z-50 transition-colors">
+      <div className="p-4 border-b border-gray-700 dark:border-gray-800">
         <div className="flex justify-center mb-4">
           <Link href="/dashboard" className="flex items-center">
             <img
@@ -49,7 +50,7 @@ const Sidebar: React.FC = () => {
             
             return (
               <div key={category}>
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
                   {category}
                 </h3>
                 <div className="space-y-2">
@@ -62,7 +63,7 @@ const Sidebar: React.FC = () => {
                         className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                           isActive
                             ? 'bg-blue-600 text-white'
-                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                            : 'text-gray-300 dark:text-gray-400 hover:bg-gray-800 dark:hover:bg-gray-800 hover:text-white dark:hover:text-white'
                         }`}
                       >
                         <Icon icon={item.icon} className="mr-3 h-5 w-5" />
